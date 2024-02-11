@@ -1,5 +1,3 @@
-// import { enableMocking } from "./mocks";
-
 import { HttpHandler, HttpResponse, http } from "msw";
 import { worker } from "./mocks/browser.ts";
 import { enableMocking } from "./mocks/index.ts";
