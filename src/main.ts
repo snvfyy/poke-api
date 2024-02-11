@@ -1,13 +1,16 @@
 import { HttpHandler, HttpResponse, http } from "msw";
+import { z } from "zod";
 import { worker } from "./mocks/browser.ts";
 import { enableMocking } from "./mocks/index.ts";
 import {
   CustomRequestHandler,
-  CustomResponse,
-  Method,
+  Method
 } from "./mocks/request.interface.ts";
 import { loadAndShowModal } from "./msw/modal/modal.ts";
 import { displayPokemon } from "./pages/pokemon.ts";
+import {
+  customResponseSchema
+} from "./schemas/customRequestSchema.ts";
 
 async function enableMswButton() {
   const showModalButton = document.createElement("button");
@@ -32,13 +35,12 @@ async function enableMswButton() {
 }
 
 enableMocking().then(async () => {
+  await loadMswInterceptors();
+  await enableMswButton();
   await initApp();
 });
 
 async function initApp() {
-  await loadMswInterceptors();
-  await enableMswButton();
-
   await displayPokemon("pikachu");
 }
 
@@ -47,11 +49,11 @@ async function loadMswInterceptors() {
   const requests: CustomRequestHandler[] = await requestsResponse.json();
   const handlers: HttpHandler[] = [];
 
-  requests.forEach((request: CustomRequestHandler) => {
-    const { method, baseURL, endpoint, responses } = request;
-    responses.forEach((response: CustomResponse) => {
-      const { status, body, default: isDefault } = response;
+  requests.forEach(({ method, baseURL, endpoint, responses }) => {
+    const validatedResponse = z.array(customResponseSchema).safeParse(responses);
+    if (!validatedResponse.success) return;
 
+    validatedResponse.data.forEach(({ status, body, default: isDefault }) => {
       if (isDefault) {
         const handler = createHandler(
           method,
