@@ -8,7 +8,7 @@ type Response = {
   pokemonData: Pokemon;
 };
 
-export const fetchUserData = async (name: string): Promise<Response> => {
+export const fetchPokemonData = async (name: string): Promise<Response> => {
   const response = await fetch(`${environment}${endpoint(name)}`);
   const pokemonData: Pokemon = await response.json();
   const validatedPokemon = PokemonSchema.parse(pokemonData);
