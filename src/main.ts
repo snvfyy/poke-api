@@ -2,15 +2,10 @@ import { HttpHandler, HttpResponse, http } from "msw";
 import { z } from "zod";
 import { worker } from "./mocks/browser.ts";
 import { enableMocking } from "./mocks/index.ts";
-import {
-  CustomRequestHandler,
-  Method
-} from "./mocks/request.interface.ts";
-import { loadAndShowModal } from "./msw/modal/modal.ts";
+import { CustomRequestHandler, Method } from "./mocks/request.interface.ts";
+import { loadAndShowModal } from "./msw/modal/show-modal.ts";
 import { displayPokemon } from "./pages/pokemon.ts";
-import {
-  customResponseSchema
-} from "./schemas/customRequestSchema.ts";
+import { customResponseSchema } from "./schemas/customRequestSchema.ts";
 
 async function enableMswButton() {
   const showModalButton = document.createElement("button");
@@ -35,9 +30,13 @@ async function enableMswButton() {
 }
 
 enableMocking().then(async () => {
-  await loadMswInterceptors();
-  await enableMswButton();
-  await initApp();
+  try {
+    await loadMswInterceptors();
+    await enableMswButton();
+    await initApp();
+  } catch (error) {
+    console.error("An error occurred during initialization:", error);
+  }
 });
 
 async function initApp() {
@@ -45,28 +44,34 @@ async function initApp() {
 }
 
 async function loadMswInterceptors() {
-  const requestsResponse = await fetch("/src/mocks/requests/requests.json");
-  const requests: CustomRequestHandler[] = await requestsResponse.json();
-  const handlers: HttpHandler[] = [];
+  try {
+    const requestsResponse = await fetch("/src/mocks/requests/requests.json");
+    const requests: CustomRequestHandler[] = await requestsResponse.json();
+    const handlers: HttpHandler[] = [];
 
-  requests.forEach(({ method, baseURL, endpoint, responses }) => {
-    const validatedResponse = z.array(customResponseSchema).safeParse(responses);
-    if (!validatedResponse.success) return;
+    requests.forEach(({ method, baseURL, endpoint, responses }) => {
+      const validatedResponse = z
+        .array(customResponseSchema)
+        .safeParse(responses);
+      if (!validatedResponse.success) return;
 
-    validatedResponse.data.forEach(({ status, body, default: isDefault }) => {
-      if (isDefault) {
-        const handler = createHandler(
-          method,
-          `${baseURL}${endpoint}`,
-          status,
-          body
-        );
-        handlers.push(handler);
-      }
+      validatedResponse.data.forEach(({ status, body, default: isDefault }) => {
+        if (isDefault) {
+          const handler = createHandler(
+            method,
+            `${baseURL}${endpoint}`,
+            status,
+            body
+          );
+          handlers.push(handler);
+        }
+      });
     });
-  });
 
-  worker.use(...handlers);
+    worker.use(...handlers);
+  } catch (error) {
+    console.error("Failed to load MSW interceptors:", error);
+  }
 }
 
 function createHandler(
